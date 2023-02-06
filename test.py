@@ -23,7 +23,8 @@ import fire
 from memory_profiler import profile
 
 logging.basicConfig(level = logging.INFO)
-
+import os
+os.environ['DISPLAY'] = ':1'
 
 
 GENRES = \
@@ -225,7 +226,7 @@ def get_sample_freq(all_games, render = False, emu='Atari2600'):
             for i in range(1): 
                 start = time.time()
                 env.reset() 
-                for _ in range(500):
+                for _ in range(50000):
                     obs, rew, done, info = env.step(env.action_space.sample())
                     # rew will be a list of [player_1_rew, player_2_rew]
                     # done and info will remain the same
@@ -236,7 +237,7 @@ def get_sample_freq(all_games, render = False, emu='Atari2600'):
                 game_freq_dict[game] += float(end-start)
             env.close()
             # simple averaging to get frequency 
-            game_freq_dict[game] = (500 * 1) / game_freq_dict[game]
+            game_freq_dict[game] = (50000 * 1) / game_freq_dict[game]
             logging.info(f"Average sampling rate in {post_fix} mode: {game_freq_dict[game]}")
 
         except: 
@@ -250,7 +251,7 @@ def get_sample_freq(all_games, render = False, emu='Atari2600'):
     return game_freq_dict
 
 #@profile
-def get_tianshou_stats(all_games, training_num, render= True): 
+def get_tianshou_stats(all_games, training_num, render= False): 
 
     game_tsample_freq = defaultdict()
     for game in ['Pong-Atari2600']: 
@@ -267,18 +268,14 @@ def get_tianshou_stats(all_games, training_num, render= True):
         # Only need to have the collector collect x samples for profiling, no need to iterate
         
         start = time.time()
-        train_collector.collect(n_step=5000, random= True, render=0. if render else None) 
+        train_collector.collect(n_step=20000 * training_num, random= True, render=0. if render else None) 
         end = time.time() 
 
-        game_tsample_freq[game] = float(end-start)
+        game_tsample_freq[game] = 20000 * training_num / float(end-start)
+        logging.info(f"Tianshou FPS with {training_num}: {game_tsample_freq[game]}")
+
 
     return game_tsample_freq
-
-
-
-
-
-
 
             
 
@@ -303,9 +300,17 @@ def get_tianshou_stats(all_games, training_num, render= True):
 
 if __name__ == '__main__': 
     
+    for training_num in [1,2,4,8,16,32]: 
+        temp_dict = get_tianshou_stats(None,training_num=training_num, render=False)
+       # for game,t in temp_dict.items(): temp_dict[game][training_num]=t
 
-    #for training_num in [1,2,4,8,16,32,64]: 
-    #    temp_dict = get_tianshou_stats(None,training_num=training_num, render=False)
+
+    #with open(f'./tsample_dict_new.pkl', 'wb') as f:
+    #    pickle.dump(temp_dict, f)
+    #logging.info(f"Tianshou new sampling dict: {temp_dict}")
+
+
+    '''
     #for training_num in [1,2,4,8,16,32]: 
         #temp_dict = get_tianshou_stats(None,training_num=training_num, render=True)
     yes = retro.make('Asteroids-Atari2600')
@@ -326,4 +331,7 @@ if __name__ == '__main__':
         yes.render() 
         print("DID ACTION ",yes.get_action_meaning(y))
     yes.close()
+    '''
+
+
     #fire.Fire(main)
